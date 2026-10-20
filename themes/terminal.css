@@ -1,0 +1,30 @@
+/*
+  @name Terminal
+  @description Green-on-black hacker console with scanlines.
+  @swatch #0a0f0a #33ff66 #1f8f3a #c8ffd4
+*/
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap");
+
+:root {
+  --mc-font: "JetBrains Mono", "Consolas", monospace;
+  --mc-text: #c8ffd4;
+  --mc-name-color: #33ff66;
+  --mc-outline: rgba(0, 0, 0, .9);
+  --mc-highlight: #ffe066;
+  --mc-chat-bg: rgba(5, 12, 6, .82);
+  --mc-bg-radius: 6px;
+  --mc-chat-padding: 12px 14px;
+}
+#chat { font-size: calc(var(--mc-size) * .9); }
+#bg { box-shadow: inset 0 0 0 1px rgba(51, 255, 102, .35); }
+#bg::after { /* scanlines */
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, .18) 2px 3px);
+}
+.meta::before { content: "> "; color: #1f8f3a; }
+.name { color: var(--mc-name-color); margin-right: .5em; }
+.name::before { content: "["; color: #1f8f3a; }
+.name::after { content: "]"; color: #1f8f3a; }
+.sep { display: none; }
+.text { text-shadow: 0 0 4px rgba(51, 255, 102, .45); }
+.msg.superchat, .msg.member, .msg.highlight { background-color: rgba(255, 224, 102, .08); border-left-color: var(--mc-highlight); }

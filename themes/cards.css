@@ -1,0 +1,33 @@
+/*
+  @name Cards
+  @description Dark rounded cards, name on its own line, colored platform stripe.
+  @swatch #16181f #2a2e3a #9146ff #ffffff
+*/
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+:root {
+  --mc-font: "Inter", "Segoe UI", sans-serif;
+  --mc-bubble: rgba(22, 24, 31, .88);
+  --mc-bubble-radius: 12px;
+  --mc-gap: .4em;
+  --mc-outline: transparent;
+}
+.msg {
+  background-color: var(--mc-bubble);
+  border-radius: var(--mc-bubble-radius);
+  padding: .45em .7em .5em .8em;
+  margin-top: var(--mc-gap);
+  border-left: 4px solid var(--accent, #888);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+.msg.twitch { --accent: var(--mc-twitch); }
+.msg.kick { --accent: var(--mc-kick); }
+.msg.youtube { --accent: var(--mc-youtube); }
+.meta { display: block; font-size: .82em; margin-bottom: .1em; }
+.sep { display: none; }
+.msg.superchat, .msg.member, .msg.highlight {
+  border-left-color: var(--mc-highlight);
+  background-color: var(--mc-bubble);
+  box-shadow: 0 0 0 2px var(--mc-highlight) inset, 0 4px 14px rgba(0, 0, 0, .35);
+}
+.msg.sys { border-left-color: #666; }

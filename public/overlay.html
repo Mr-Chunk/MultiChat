@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MultiChat Overlay</title>
+<!--
+  Base styles. Themes (themes/*.css) load after this and restyle it.
+  The class names and --mc-* variables below are the theme contract — see THEMES.md.
+  Values the user sets on the setup page are applied as inline --mc-* variables on <html>,
+  so they always win over a theme's defaults.
+-->
+<style id="mc-base">
+  :root {
+    --mc-font: "Segoe UI", Inter, system-ui, sans-serif;
+    --mc-name-font: var(--mc-font);
+    --mc-size: 18px;
+    --mc-line-height: 1.35;
+    --mc-text: #ffffff;
+    --mc-name-weight: 700;
+    --mc-name-color: #ffffff;
+    --mc-outline: rgba(0, 0, 0, .9);
+    --mc-highlight: #ffd400;
+    --mc-twitch: #9146ff;
+    --mc-kick: #53fc18;
+    --mc-youtube: #ff0033;
+    --mc-bubble: rgba(0, 0, 0, .55);
+    --mc-bubble-radius: 8px;
+    --mc-gap: .25em;
+    --mc-chat-bg: transparent;
+    --mc-chat-padding: 8px 10px;
+    --mc-bg-image: none;
+    --mc-bg-opacity: 1;
+    --mc-bg-blur: 0px;
+    --mc-bg-radius: 12px;
+    --mc-bg-size: cover;
+    --mc-bg-repeat: no-repeat;
+    --mc-bg-position: center;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  body { font-family: var(--mc-font); color: var(--mc-text); }
+
+  /* background layer behind the whole chat */
+  #bg { position: absolute; inset: 0; background: var(--mc-chat-bg); border-radius: var(--mc-bg-radius); overflow: hidden; pointer-events: none; }
+  #bg::before, .msg-bg::before {
+    content: ""; position: absolute; inset: calc(var(--mc-bg-blur) * -2);
+    background-image: var(--mc-bg-image); background-size: var(--mc-bg-size); background-repeat: var(--mc-bg-repeat); background-position: var(--mc-bg-position);
+    opacity: var(--mc-bg-opacity); filter: blur(var(--mc-bg-blur));
+  }
+  .bg-messages #bg::before { display: none; }
+  .msg-bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: inherit; pointer-events: none; }
+
+  #chat {
+    position: absolute; inset: 0; padding: var(--mc-chat-padding);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    font-size: var(--mc-size); line-height: var(--mc-line-height);
+  }
+  .align-right #chat { text-align: right; }
+  .align-center #chat { text-align: center; }
+
+  .msg { position: relative; isolation: isolate; padding: .18em 0; overflow-wrap: anywhere; transition: opacity .6s; }
+  .shadow .msg { text-shadow: 0 0 2px var(--mc-outline), 0 1px 3px var(--mc-outline); }
+  .animate .msg { animation: mc-in .25s ease-out; }
+  .msg.fading { opacity: 0; }
+  .boxed .msg, .bg-messages .msg { background-color: var(--mc-bubble); border-radius: var(--mc-bubble-radius); padding: .3em .55em; margin-top: var(--mc-gap); }
+  .bg-messages:not(.boxed) .msg { background-color: transparent; }
+  @keyframes mc-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+  .meta { display: inline; }
+  .plat { display: inline-block; width: 1em; height: 1em; vertical-align: -.14em; margin-right: .3em; }
+  .plat svg { display: block; width: 100%; height: 100%; }
+  .badges:empty { display: none; }
+  .badge { height: 1.05em; vertical-align: -.17em; margin-right: .22em; }
+  .name { font-family: var(--mc-name-font); font-weight: var(--mc-name-weight); color: var(--user-color, var(--mc-name-color)); }
+  .sep { margin-right: .35em; }
+  .text { color: var(--mc-text); }
+  .emote { height: 1.6em; vertical-align: middle; margin: -.25em .05em; }
+  .msg.action .text { font-style: italic; color: var(--user-color, var(--mc-text)); }
+  .msg.superchat, .msg.member, .msg.highlight { border-left: 3px solid var(--mc-highlight); padding-left: .45em; background-color: color-mix(in srgb, var(--mc-highlight) 14%, transparent); border-radius: 4px; }
+  .amount { background: var(--mc-highlight); color: #000; font-weight: 700; border-radius: 4px; padding: 0 .3em; margin-right: .35em; text-shadow: none; }
+  .msg.sys { opacity: .75; font-size: .75em; font-style: italic; }
+  .hide-icons .plat, .hide-badges .badges { display: none; }
+
+  /* explicit name-color choices on the setup page beat the theme */
+  .name-user .name { color: var(--user-color, var(--mc-name-color)) !important; }
+  .name-platform .twitch .name { color: var(--mc-twitch) !important; }
+  .name-platform .kick .name { color: var(--mc-kick) !important; }
+  .name-platform .youtube .name { color: var(--mc-youtube) !important; }
+  .name-custom .name { color: var(--mc-name-color) !important; }
+</style>
+<script src="/assets/fonts.js"></script>
+</head>
+<body>
+<div id="bg"></div>
+<div id="chat"></div>
+<script>
+(async () => {
+  'use strict';
+
+  const ICONS = {
+    twitch: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="5" style="fill:var(--mc-twitch)"/><path fill="#fff" d="M6.5 4 5 7.5V18h3.6v2h2l2-2h2.8L19 14.4V4zm11 9.7-2.2 2.2h-3.4l-1.9 1.9v-1.9H7.8V5.4h9.7zM15.4 8h-1.4v4h1.4zm-3.8 0h-1.4v4h1.4z"/></svg>',
+    kick: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="5" style="fill:var(--mc-kick)"/><path fill="#000" d="M6 5h4v4h2V7h2V5h4v5h-2v2h-2v0h2v2h2v5h-4v-2h-2v-2h-2v4H6z"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="5" style="fill:var(--mc-youtube)"/><path fill="#fff" d="M9.5 7.5v9l7.5-4.5z"/></svg>',
+  };
+
+  // ---------- config: this streamer's saved settings (the token in /o/<token> identifies them); URL params override ----------
+  const params = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+  const TOKEN = (location.pathname.match(/^\/o\/([\w-]+)/) || [])[1] || '';
+  const API = `/api/o/${TOKEN}`;
+  let saved = {}, uploadsBase = '';
+  for (let attempt = 0; ; attempt++) { // keep trying if the server is briefly unreachable (e.g. during a deploy)
+    try {
+      const r = await fetch(API + '/settings', { cache: 'no-store' });
+      if (r.status === 404) {
+        if (params.get('preview') === '1') document.getElementById('chat').textContent = 'This overlay link is no longer valid.';
+        return;
+      }
+      ({ settings: saved, uploadsBase } = await r.json());
+      break;
+    } catch { await new Promise(r => setTimeout(r, Math.min(30000, 2000 * (attempt + 1)))); }
+  }
+  const pick = (k, d) => params.has(k) ? params.get(k) : (k in saved ? saved[k] : d);
+  const bool = (k, d) => { const v = pick(k, d); return v === true || v === '1' || v === 'true'; };
+  const str = (k, d = '') => String(pick(k, d) ?? '').trim();
+  const num = (k, d) => { const n = Number(pick(k, d)); return Number.isFinite(n) ? n : d; };
+  const cfg = {
+    twitch: str('twitch').toLowerCase().replace(/^#/, ''),
+    kick: str('kick').toLowerCase(),
+    kickid: params.get('kickid') || '',
+    youtube: str('youtube'),
+    theme: str('theme', 'default').replace(/[^a-z0-9_-]/gi, '') || 'default',
+    max: num('max', 50), fade: num('fade', 0),
+    hidecmd: bool('hidecmd', false),
+    ignore: str('ignore').toLowerCase().split(',').map(s => s.trim().replace(/^@/, '')).filter(Boolean),
+    demo: params.get('demo') === '1',
+    preview: params.get('preview') === '1',
+  };
+
+  // ---------- appearance → classes + --mc-* variables ----------
+  const html = document.documentElement;
+  const setVar = (name, value) => { if (value !== '' && value != null) html.style.setProperty(name, value); };
+  const rgba = (hex, pct) => { const m = /^#([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return ''; const n = parseInt(m[1], 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${pct / 100})`; };
+
+  html.classList.add('mc', 'theme-' + cfg.theme, 'align-' + str('align', 'left'));
+  for (const [cls, on] of [['boxed', bool('boxed', false)], ['shadow', bool('shadow', true)], ['animate', bool('animate', true)],
+    ['hide-icons', !bool('icons', true)], ['hide-badges', !bool('badges', true)]]) html.classList.toggle(cls, on);
+  const nameMode = str('nameMode', 'theme');
+  if (nameMode && nameMode !== 'theme') html.classList.add('name-' + nameMode);
+
+  setVar('--mc-size', num('size', 18) + 'px');
+  setVar('--mc-text', str('textColor'));
+  setVar('--mc-name-color', str('nameColor'));
+  setVar('--mc-outline', str('outlineColor'));
+  setVar('--mc-highlight', str('highlightColor'));
+  setVar('--mc-twitch', str('twitchColor'));
+  setVar('--mc-kick', str('kickColor'));
+  setVar('--mc-youtube', str('youtubeColor'));
+  if (!bool('nameBold', true)) setVar('--mc-name-weight', '400');
+  setVar('--mc-bubble', rgba(str('bubbleColor'), num('bubbleOpacity', 55)));
+  setVar('--mc-chat-bg', rgba(str('chatBgColor'), num('chatBgOpacity', 60)));
+
+  const bgImage = str('bgImage');
+  if (bgImage) {
+    const fit = str('bgFit', 'cover');
+    setVar('--mc-bg-image', `url("${bgImage.replace(/["\\]/g, '')}")`);
+    setVar('--mc-bg-size', { cover: 'cover', contain: 'contain', tile: 'auto', stretch: '100% 100%' }[fit] || 'cover');
+    setVar('--mc-bg-repeat', fit === 'tile' ? 'repeat' : 'no-repeat');
+    setVar('--mc-bg-position', str('bgPosition', 'center'));
+    setVar('--mc-bg-opacity', num('bgImageOpacity', 100) / 100);
+    setVar('--mc-bg-blur', num('bgBlur', 0) + 'px');
+    if (str('bgTarget', 'chat') === 'messages') html.classList.add('bg-messages');
+  }
+  if (str('chatBgColor') || bgImage) setVar('--mc-bg-radius', num('bgRadius', 12) + 'px');
+
+  // fonts: Google Fonts, installed fonts, or files uploaded on the setup page ("file:name.ttf")
+  const fontFamily = async value => {
+    if (!value) return '';
+    if (value.startsWith('file:')) {
+      const file = value.slice(5), family = 'mc-upload-' + file.replace(/[^\w-]/g, '_');
+      const face = new FontFace(family, `url("${uploadsBase}/fonts/${encodeURIComponent(file)}")`);
+      try { document.fonts.add(await face.load()); } catch {}
+      return `"${family}"`;
+    }
+    const f = (window.MC_FONTS || []).find(x => x.name === value);
+    if (f && f.source === 'google') {
+      const link = document.createElement('link'); link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(value).replace(/%20/g, '+')}&display=swap`;
+      document.head.appendChild(link);
+    }
+    return `"${value.replace(/"/g, '')}"`;
+  };
+  const [msgFont, nameFont] = await Promise.all([fontFamily(str('fontMessage')), fontFamily(str('fontName'))]);
+  if (msgFont) setVar('--mc-font', `${msgFont}, "Segoe UI", system-ui, sans-serif`);
+  if (nameFont) setVar('--mc-name-font', `${nameFont}, "Segoe UI", system-ui, sans-serif`);
+
+  // theme stylesheet goes last so it can restyle the base
+  {
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.id = 'mc-theme';
+    link.href = `/themes/${cfg.theme}.css`;
+    document.head.appendChild(link);
+  }
+
+  // ---------- rendering ----------
+  const chat = document.getElementById('chat');
+  const PALETTE = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#748ffc','#da77f2','#f783ac','#63e6be','#ff8787','#a9e34b'];
+  const colorFor = name => { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) | 0; return PALETTE[Math.abs(h) % PALETTE.length]; };
+  // keep very dark name colors readable on stream
+  const readable = c => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return null;
+    const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 60 ? `rgb(${Math.min(255, r + 90)},${Math.min(255, g + 90)},${Math.min(255, b + 90)})` : '#' + m[1];
+  };
+  const span = (cls, text) => { const s = document.createElement('span'); s.className = cls; if (text != null) s.textContent = text; return s; };
+
+  function addMessage(m) {
+    const user = (m.user || '').toLowerCase();
+    if (cfg.ignore.includes(user)) return;
+    const plain = m.parts.map(p => p.text || '').join('').trim();
+    if (cfg.hidecmd && plain.startsWith('!')) return;
+
+    const el = document.createElement('div');
+    el.className = 'msg ' + m.platform + (m.highlight ? ' ' + m.highlight : '') + (m.action ? ' action' : '');
+    el.dataset.platform = m.platform;
+    if (m.id) el.dataset.id = m.platform + ':' + m.id;
+    if (m.userId || user) el.dataset.user = m.platform + ':' + (m.userId || user);
+    el.style.setProperty('--user-color', readable(m.color) || colorFor(user));
+    if (bgImage && html.classList.contains('bg-messages')) el.appendChild(span('msg-bg'));
+
+    const meta = span('meta');
+    const plat = span('plat'); plat.innerHTML = ICONS[m.platform]; meta.appendChild(plat);
+    const badges = span('badges');
+    for (const b of m.badges || []) {
+      const img = document.createElement('img');
+      img.className = 'badge'; img.src = b.url; img.alt = ''; if (b.title) img.title = b.title;
+      badges.appendChild(img);
+    }
+    meta.appendChild(badges);
+    if (m.amount) meta.appendChild(span('amount', m.amount));
+    meta.appendChild(span('name', m.user));
+    meta.appendChild(span('sep', m.action ? '' : ':'));
+    el.appendChild(meta);
+
+    const text = span('text');
+    for (const p of m.parts) {
+      if (p.emote) {
+        const img = document.createElement('img'); img.className = 'emote'; img.src = p.emote; img.alt = img.title = p.name || '';
+        text.appendChild(img);
+      } else text.appendChild(document.createTextNode(p.text));
+    }
+    el.appendChild(text);
+    chat.appendChild(el);
+
+    while (chat.children.length > cfg.max) chat.firstChild.remove();
+    if (cfg.fade > 0) setTimeout(() => { el.classList.add('fading'); setTimeout(() => el.remove(), 700); }, cfg.fade * 1000);
+  }
+  // connection notices only show in the setup-page preview, never on stream
+  function sysMessage(text) {
+    if (!cfg.preview) return;
+    const el = document.createElement('div'); el.className = 'msg sys'; el.textContent = text; chat.appendChild(el);
+    setTimeout(() => { el.classList.add('fading'); setTimeout(() => el.remove(), 700); }, 6000);
+  }
+  function report(platform, channel, state, detail = '') {
+    fetch(API + '/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform, channel, state, detail }) }).catch(() => {});
+  }
+  const removeWhere = sel => chat.querySelectorAll(sel).forEach(e => e.remove());
+  const deleteMsg = (platform, id) => removeWhere(`[data-id="${CSS.escape(platform + ':' + id)}"]`);
+  const deleteUser = (platform, u) => removeWhere(`[data-user="${CSS.escape(platform + ':' + u)}"]`);
+
+  // ---------- Twitch (anonymous IRC over WebSocket) ----------
+  const TWITCH_BADGES = {
+    broadcaster: '5527c58c-fb7d-422d-b71b-f309dcb85cc1',
+    moderator: '3267646d-33f0-4b17-b3df-f923a41db1d0',
+    vip: 'b817aba4-fad8-49e2-b88a-7cc744dfa6ec',
+    subscriber: '5d9f2208-5dd8-11e7-8513-2ff4adfae661',
+    partner: 'd12a2e27-16f6-41d0-ab77-b780518f00a3',
+  };
+  function parseTags(raw) {
+    const t = {};
+    for (const kv of raw.split(';')) { const i = kv.indexOf('='); t[kv.slice(0, i)] = kv.slice(i + 1).replace(/\\s/g, ' ').replace(/\\:/g, ';').replace(/\\\\/g, '\\'); }
+    return t;
+  }
+  function twitchParts(text, emotesTag) {
+    const chars = Array.from(text); // emote indices are in code points
+    const ranges = [];
+    if (emotesTag) for (const e of emotesTag.split('/')) {
+      const [id, pos] = e.split(':'); if (!pos) continue;
+      for (const r of pos.split(',')) { const [s, en] = r.split('-').map(Number); ranges.push({ id, s, e: en }); }
+    }
+    ranges.sort((a, b) => a.s - b.s);
+    const parts = []; let i = 0;
+    for (const r of ranges) {
+      if (r.s > i) parts.push({ text: chars.slice(i, r.s).join('') });
+      parts.push({ emote: `https://static-cdn.jtvnw.net/emoticons/v2/${r.id}/default/dark/2.0`, name: chars.slice(r.s, r.e + 1).join('') });
+      i = r.e + 1;
+    }
+    if (i < chars.length) parts.push({ text: chars.slice(i).join('') });
+    return parts;
+  }
+  function connectTwitch(channel) {
+    let retry = 1000;
+    const open = () => {
+      report('twitch', channel, 'connecting');
+      const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+      ws.onopen = () => {
+        ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        ws.send('PASS SCHMOOPIIE');
+        ws.send('NICK justinfan' + Math.floor(10000 + Math.random() * 80000));
+        ws.send('JOIN #' + channel);
+      };
+      ws.onmessage = ev => {
+        for (const line of ev.data.split('\r\n')) {
+          if (!line) continue;
+          if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); continue; }
+          const m = /^(?:@(\S+) )?(?::(\S+) )?(\S+)(?: (#\S+))?(?: :(.*))?$/.exec(line);
+          if (!m) continue;
+          const [, rawTags, prefix, cmd, , trailing = ''] = m;
+          const tags = rawTags ? parseTags(rawTags) : {};
+          if (cmd === 'JOIN' && prefix && prefix.startsWith('justinfan')) { retry = 1000; sysMessage(`Connected to Twitch: ${channel}`); report('twitch', channel, 'connected'); }
+          else if (cmd === 'PRIVMSG') {
+            let text = trailing, action = false;
+            const am = /^\u0001ACTION (.*)\u0001$/.exec(text); if (am) { text = am[1]; action = true; }
+            const badges = (tags.badges || '').split(',').map(b => b.split('/')[0])
+              .filter(b => TWITCH_BADGES[b]).map(b => ({ url: `https://static-cdn.jtvnw.net/badges/v1/${TWITCH_BADGES[b]}/2`, title: b }));
+            addMessage({
+              platform: 'twitch', id: tags.id, userId: tags['user-id'],
+              user: tags['display-name'] || prefix.split('!')[0], color: tags.color, badges, action,
+              highlight: tags['msg-id'] === 'highlighted-message' || tags.bits ? 'highlight' : '',
+              parts: twitchParts(text, tags.emotes),
+            });
+          } else if (cmd === 'CLEARMSG') deleteMsg('twitch', tags['target-msg-id']);
+          else if (cmd === 'CLEARCHAT') { if (tags['target-user-id']) deleteUser('twitch', tags['target-user-id']); else removeWhere('.msg.twitch'); }
+        }
+      };
+      ws.onclose = () => { report('twitch', channel, 'reconnecting'); setTimeout(open, retry); retry = Math.min(retry * 2, 30000); };
+    };
+    open();
+  }
+
+  // ---------- Kick (public Pusher channel) ----------
+  const KICK_PUSHER_KEY = params.get('kickkey') || '34bf7a0ff419a2a775b9';
+  const KICK_PUSHER_CLUSTER = params.get('kickcluster') || 'us2';
+  async function kickChatroomId(slug) {
+    if (cfg.kickid) return cfg.kickid;
+    for (const url of [`${API}/kick?slug=${encodeURIComponent(slug)}`, `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`]) {
+      try { const j = await (await fetch(url)).json(); if (j?.chatroom?.id) return j.chatroom.id; } catch {}
+    }
+    return null;
+  }
+  function kickParts(content) {
+    const parts = []; const re = /\[emote:(\d+):([^\]]*)\]/g; let last = 0, m;
+    while ((m = re.exec(content))) {
+      if (m.index > last) parts.push({ text: content.slice(last, m.index) });
+      parts.push({ emote: `https://files.kick.com/emotes/${m[1]}/fullsize`, name: m[2] });
+      last = re.lastIndex;
+    }
+    if (last < content.length) parts.push({ text: content.slice(last) });
+    return parts;
+  }
+  async function connectKick(slug) {
+    report('kick', slug, 'connecting');
+    const id = await kickChatroomId(slug);
+    if (!id) { sysMessage(`Kick: couldn't find channel "${slug}"`); report('kick', slug, 'error', 'channel not found'); return; }
+    let retry = 1000;
+    const open = () => {
+      const ws = new WebSocket(`wss://ws-${KICK_PUSHER_CLUSTER}.pusher.com/app/${KICK_PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`);
+      ws.onopen = () => ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${id}.v2` } }));
+      ws.onmessage = ev => {
+        const msg = JSON.parse(ev.data);
+        if (msg.event === 'pusher:ping') { ws.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+        if (msg.event === 'pusher_internal:subscription_succeeded') { retry = 1000; sysMessage(`Connected to Kick: ${slug}`); report('kick', slug, 'connected'); return; }
+        if (msg.event === 'pusher:error') { report('kick', slug, 'error', msg.data?.message || 'connection error'); return; }
+        let d; try { d = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data; } catch { return; }
+        if (msg.event === 'App\\Events\\ChatMessageEvent') {
+          const s = d.sender || {}, ident = s.identity || {};
+          const badges = (ident.badges_v2 || []).filter(b => b.selected && b.image_url).sort((a, b) => a.sort_order - b.sort_order)
+            .map(b => ({ url: b.image_url, title: b.name }));
+          addMessage({ platform: 'kick', id: d.id, userId: s.id, user: s.username, color: ident.color, badges, parts: kickParts(d.content || '') });
+        } else if (msg.event === 'App\\Events\\MessageDeletedEvent') deleteMsg('kick', d.message?.id);
+        else if (msg.event === 'App\\Events\\UserBannedEvent') deleteUser('kick', d.user?.id);
+        else if (msg.event === 'App\\Events\\ChatroomClearEvent') removeWhere('.msg.kick');
+      };
+      ws.onclose = () => { report('kick', slug, 'reconnecting'); setTimeout(open, retry); retry = Math.min(retry * 2, 30000); };
+    };
+    open();
+  }
+
+  // ---------- YouTube (via the helper, Server-Sent Events) ----------
+  function connectYouTube(target) {
+    report('youtube', target, 'connecting');
+    const es = new EventSource(`${API}/yt?channel=${encodeURIComponent(target)}`);
+    let last = '', warned = false;
+    es.addEventListener('status', e => {
+      const s = JSON.parse(e.data);
+      report('youtube', target, s.state === 'offline' ? 'waiting' : s.state, s.detail || '');
+      if (s.state === last) return; last = s.state;
+      if (s.state === 'connected') sysMessage(`Connected to YouTube: ${target}`);
+      else if (s.state === 'offline') sysMessage(`YouTube: ${target} is not live yet — waiting`);
+      else if (s.state === 'error') sysMessage(`YouTube error: ${s.detail}`);
+    });
+    es.addEventListener('msg', e => {
+      const m = JSON.parse(e.data);
+      addMessage({ ...m, platform: 'youtube', color: m.roles.includes('owner') ? '#ffd600' : m.roles.includes('moderator') ? '#5e84f1' : null });
+    });
+    es.addEventListener('delete', e => deleteMsg('youtube', JSON.parse(e.data).id));
+    es.addEventListener('clearuser', e => deleteUser('youtube', JSON.parse(e.data).user));
+    es.onopen = () => { warned = false; };
+    es.onerror = () => { if (!warned) { warned = true; sysMessage('YouTube needs the MultiChat helper running'); } };
+  }
+
+  // ---------- sample messages (preview + "Send test messages") ----------
+  const SAMPLES = [
+    { platform: 'twitch', user: 'PixelPilot', color: '#1E90FF', parts: [{ text: 'that clutch was insane ' }, { emote: 'https://static-cdn.jtvnw.net/emoticons/v2/305954156/default/dark/2.0', name: 'PogChamp' }] },
+    { platform: 'kick', user: 'greenwave', color: '#53FC18', parts: [{ text: 'hello from kick 👋' }] },
+    { platform: 'youtube', user: 'Mara Lin', parts: [{ text: 'first time catching you live!' }] },
+    { platform: 'twitch', user: 'n0vacane', color: '#FF4500', badges: [{ url: `https://static-cdn.jtvnw.net/badges/v1/${TWITCH_BADGES.moderator}/2` }], parts: [{ text: 'reminder: be nice in chat' }] },
+    { platform: 'youtube', user: 'Dev Patel', highlight: 'superchat', amount: '$5.00', parts: [{ text: 'keep it up!' }] },
+    { platform: 'kick', user: 'Stormy', color: '#FFB800', parts: [{ text: 'what game is next?' }] },
+    { platform: 'twitch', user: 'lunarbyte', color: '#9ACD32', action: true, parts: [{ text: 'throws confetti everywhere' }] },
+  ];
+  let sampleIdx = 0;
+  const nextSample = () => addMessage(SAMPLES[sampleIdx++ % SAMPLES.length]);
+
+  // ---------- live link to the setup page ----------
+  {
+    const ev = new EventSource(API + '/events');
+    ev.addEventListener('settings', () => location.reload());
+    ev.addEventListener('reload', () => location.reload());
+    ev.addEventListener('test', () => { for (let i = 0; i < 3; i++) setTimeout(nextSample, i * 350); });
+  }
+
+  // in the setup-page preview, the "Show sample chat" checkbox lives on the parent page
+  const demoOn = () => cfg.demo || (cfg.preview && (() => { try { return !!parent.document.getElementById('demo')?.checked; } catch { return false; } })());
+  if (cfg.demo || cfg.preview) { if (demoOn()) { nextSample(); nextSample(); nextSample(); } setInterval(() => { if (demoOn()) nextSample(); }, 1600); }
+  if (cfg.twitch) connectTwitch(cfg.twitch);
+  if (cfg.kick) connectKick(cfg.kick);
+  if (cfg.youtube) connectYouTube(cfg.youtube);
+})();
+</script>
+</body>
+</html>

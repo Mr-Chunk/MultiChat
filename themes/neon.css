@@ -1,0 +1,37 @@
+/*
+  @name Neon Glow
+  @description Glowing cyberpunk names on deep purple glass.
+  @swatch #0d0221 #00f0ff #ff2bd6 #f8f8ff
+*/
+@import url("https://fonts.googleapis.com/css2?family=Orbitron&family=Rajdhani:wght@500;700&display=swap");
+
+:root {
+  --mc-font: "Rajdhani", "Segoe UI", sans-serif;
+  --mc-name-font: "Orbitron", "Segoe UI", sans-serif;
+  --mc-text: #f3eaff;
+  --mc-name-color: #00f0ff;
+  --mc-highlight: #ff2bd6;
+  --mc-bubble: rgba(13, 2, 33, .72);
+  --mc-bubble-radius: 6px;
+  --mc-outline: rgba(0, 0, 0, .6);
+}
+.msg {
+  background-color: var(--mc-bubble);
+  border: 1px solid color-mix(in srgb, var(--user-color, var(--mc-name-color)) 55%, transparent);
+  border-radius: var(--mc-bubble-radius);
+  padding: .3em .6em;
+  margin-top: .3em;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--user-color, var(--mc-name-color)) 35%, transparent), inset 0 0 12px rgba(255, 43, 214, .12);
+}
+.name {
+  font-size: .78em;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px currentColor, 0 0 14px currentColor;
+}
+.plat { filter: drop-shadow(0 0 4px rgba(255, 255, 255, .5)); }
+.msg.superchat, .msg.member, .msg.highlight {
+  border-color: var(--mc-highlight);
+  box-shadow: 0 0 16px var(--mc-highlight);
+  background-color: var(--mc-bubble);
+}

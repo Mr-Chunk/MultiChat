@@ -1,0 +1,25 @@
+/*
+  @name Frosted Glass
+  @description Translucent blurred glass panels that let the game show through.
+  @swatch #ffffff #dfe7ff #8aa2ff #1b2440
+*/
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700&display=swap");
+
+:root {
+  --mc-font: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --mc-bubble: rgba(255, 255, 255, .14);
+  --mc-bubble-radius: 14px;
+  --mc-outline: rgba(0, 0, 0, .45);
+}
+.msg {
+  background-color: var(--mc-bubble);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: var(--mc-bubble-radius);
+  padding: .4em .7em;
+  margin-top: .35em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+}
+.shadow .msg { text-shadow: 0 1px 2px var(--mc-outline); }
+.msg.superchat, .msg.member, .msg.highlight { border-color: var(--mc-highlight); background-color: var(--mc-bubble); }

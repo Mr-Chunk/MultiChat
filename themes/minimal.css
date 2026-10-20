@@ -1,0 +1,16 @@
+/*
+  @name Minimal
+  @description Small, light text with no frills that stays out of the way.
+  @swatch #000000 #ffffff #bbbbbb #888888
+*/
+:root {
+  --mc-name-weight: 600;
+  --mc-outline: rgba(0, 0, 0, .75);
+  --mc-text: rgba(255, 255, 255, .92);
+}
+#chat { font-size: calc(var(--mc-size) * .85); }
+.msg { padding: .08em 0; }
+.plat { width: .8em; height: .8em; vertical-align: -.05em; opacity: .85; }
+.badge { height: .9em; opacity: .9; }
+.emote { height: 1.35em; }
+.shadow .msg { text-shadow: 0 1px 2px var(--mc-outline); }

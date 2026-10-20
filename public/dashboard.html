@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MultiChat Setup</title>
+<style>
+  :root {
+    --bg: #0d0f14; --panel: #151821; --panel2: #1b1f2a; --panel3: #222735; --line: #262b38;
+    --text: #e8eaf0; --muted: #8f97a8; --accent: #6c8cff; --ok: #3ddc84; --warn: #ffb547; --bad: #ff5d6c;
+    --twitch: #9146ff; --kick: #53fc18; --youtube: #ff0033;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", Inter, system-ui, sans-serif; }
+  a { color: var(--accent); }
+  code { font-family: Consolas, ui-monospace, monospace; background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; padding: 12px 24px;
+    background: rgba(13,15,20,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .logo { display: flex; gap: 3px; }
+  .logo span { width: 10px; height: 22px; border-radius: 3px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+  header nav { display: flex; gap: 4px; margin-left: 18px; flex-wrap: wrap; }
+  header nav a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 4px 9px; border-radius: 7px; }
+  header nav a:hover { background: var(--panel2); color: var(--text); }
+  @media (max-width: 1100px) { header nav { display: none; } }
+  header .spacer { flex: 1; }
+  .saved { font-size: 12.5px; color: var(--muted); }
+  .saved.on { color: var(--ok); }
+
+  main { display: grid; grid-template-columns: minmax(360px, 600px) minmax(320px, 1fr); gap: 24px; padding: 24px; max-width: 1440px; margin: 0 auto; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 16px; } .side { position: static !important; } .stage { height: 420px !important; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; scroll-margin-top: 70px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 .num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; letter-spacing: 0; }
+  .card h3 { font-size: 13px; margin: 18px 0 10px; color: var(--text); font-weight: 600; }
+  .card p.lead { margin: -6px 0 14px; color: var(--muted); font-size: 13px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+  /* channels */
+  .chan { display: grid; grid-template-columns: 34px 1fr; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .chan:first-of-type { border-top: 0; padding-top: 0; }
+  .chan .ico { width: 34px; height: 34px; grid-row: span 2; align-self: start; margin-top: 2px; }
+  .chan .ico svg { width: 100%; height: 100%; display: block; }
+  .chan label { font-weight: 600; font-size: 13px; }
+  .chan .inwrap { grid-column: 2; position: relative; }
+  .chanhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 28px; }
+  .acct { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .acct img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+  .acct b { color: var(--text); font-weight: 600; }
+  .acct .connect { display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 7px; color: #fff; text-decoration: none; }
+  .acct .connect:hover { filter: brightness(1.12); }
+  .acct .connect.twitch { background: var(--twitch); } .acct .connect.kick { background: var(--kick); color: #000; } .acct .connect.youtube { background: var(--youtube); }
+  .acct .link { font-size: 12px; padding: 0; }
+  .me { position: relative; }
+  .mebtn { display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); font-weight: 500; padding: 5px 10px 5px 5px; border-radius: 20px; }
+  .mebtn img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--panel3); }
+  .mebtn img:not([src]), .mebtn img[src=""] { display: none; }
+  .memenu { position: absolute; right: 0; top: calc(100% + 6px); background: var(--panel3); border: 1px solid #343b4d; border-radius: 10px; padding: 6px; min-width: 160px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+  .memenu button { width: 100%; text-align: left; background: none; color: var(--text); font-weight: 500; }
+  .memenu button:hover { background: rgba(108,140,255,.16); filter: none; }
+  .danger { border-color: #4a2a30; }
+  .dangerbtn { color: #ff9aa5; border-color: #5a2830; }
+  .chan .state { grid-column: 2; font-size: 12.5px; color: var(--muted); min-height: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .ok .dot { background: var(--ok); } .ok { color: var(--ok); }
+  .warn .dot { background: var(--warn); } .warn { color: var(--warn); }
+  .bad .dot { background: var(--bad); } .bad { color: var(--bad); }
+  .live { background: var(--bad); color: #fff; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; letter-spacing: .05em; }
+  .clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; padding: 2px 6px; display: none; }
+  .inwrap.has .clear { display: block; }
+
+  /* form controls */
+  input[type=text], input[type=number], input[type=url], select, textarea {
+    width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 14px; }
+  @media (max-width: 560px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .f > span { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .f > span b { color: var(--text); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; background: none; color: var(--muted); border: 0; padding: 7px 10px; border-radius: 7px; font-weight: 500; font-size: 13px; }
+  .seg button[aria-pressed=true] { background: var(--accent); color: #fff; }
+
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; }
+  @media (max-width: 560px) { .toggles { grid-template-columns: 1fr; } }
+  .tg { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; cursor: pointer; user-select: none; }
+  .tg small { display: block; color: var(--muted); font-size: 11.5px; }
+  .tg input { appearance: none; width: 36px; height: 20px; border-radius: 20px; background: #39404f; position: relative; cursor: pointer; flex: none; transition: background .2s; margin: 0; }
+  .tg input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .tg input:checked { background: var(--accent); }
+  .tg input:checked::after { transform: translateX(16px); }
+  .sub { margin-top: 12px; padding: 12px 14px; background: var(--panel2); border-radius: 10px; }
+  [hidden] { display: none !important; }
+
+  button { font: inherit; font-weight: 600; padding: 9px 14px; border: 0; border-radius: 9px; background: var(--accent); color: #fff; cursor: pointer; white-space: nowrap; }
+  button:hover { filter: brightness(1.12); }
+  button.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  button.small { padding: 5px 10px; font-size: 12.5px; }
+  button.link { background: none; color: var(--muted); padding: 4px 0; font-weight: 500; text-decoration: underline; }
+
+  /* themes */
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .theme { white-space: normal; text-align: left; background: var(--panel2); border: 2px solid var(--line); border-radius: 12px; padding: 0; overflow: hidden; color: var(--text); font-weight: 500; }
+  .theme:hover { border-color: #3a4256; filter: none; }
+  .theme[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,140,255,.2); }
+  .theme .sw { display: flex; height: 34px; }
+  .theme .sw i { flex: 1; }
+  .theme .tx { padding: 8px 10px 10px; }
+  .theme b { display: block; font-size: 13px; }
+  .theme small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.35; margin-top: 2px; }
+
+  /* color fields */
+  .colors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+  @media (max-width: 560px) { .colors { grid-template-columns: 1fr; } }
+  .cfield { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 6px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+  .cfield input[type=color] { width: 34px; height: 30px; border: 0; border-radius: 7px; background: none; padding: 0; cursor: pointer; flex: none; }
+  .cfield input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+  .cfield input[type=color]::-webkit-color-swatch { border: 1px solid rgba(255,255,255,.18); border-radius: 7px; }
+  .cfield .lbl { flex: 1; min-width: 0; font-size: 13px; }
+  .cfield .lbl small { display: block; color: var(--muted); font-size: 11.5px; font-family: Consolas, monospace; }
+  .cfield.unset input[type=color] { opacity: .35; }
+  .cfield .reset { background: none; border: 0; color: var(--muted); padding: 4px 6px; font-size: 15px; font-weight: 400; }
+  .cfield.unset .reset { visibility: hidden; }
+
+  /* font picker */
+  .fontpick { position: relative; }
+  .fontbtn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; background: var(--panel2); border: 1px solid var(--line); color: var(--text); font-weight: 400; font-size: 17px; padding: 8px 12px; }
+  .fontbtn small { font-family: "Segoe UI", sans-serif; font-size: 11.5px; color: var(--muted); }
+  .fontpop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; min-width: min(340px, 90vw); background: var(--panel3); border: 1px solid #343b4d; border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.5); padding: 8px; }
+  .fontpop input { margin-bottom: 6px; }
+  .fontcats { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+  .fontcats button { padding: 3px 9px; font-size: 11.5px; font-weight: 500; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 20px; }
+  .fontcats button[aria-pressed=true] { background: var(--accent); color: #fff; border-color: transparent; }
+  .fontlist { max-height: 330px; overflow: auto; }
+  .fontlist .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 8px 4px; position: sticky; top: 0; background: var(--panel3); }
+  .fontlist button { display: flex; width: 100%; justify-content: space-between; align-items: baseline; background: none; border: 0; color: var(--text); font-weight: 400; text-align: left; padding: 6px 8px; border-radius: 7px; font-size: 18px; }
+  .fontlist button:hover, .fontlist button.cur { background: rgba(108,140,255,.16); filter: none; }
+  .fontlist button small { font-family: "Segoe UI", sans-serif; font-size: 11px; color: var(--muted); margin-left: 8px; flex: none; }
+  .fontlist .empty { color: var(--muted); padding: 12px 8px; font-size: 13px; }
+
+  /* uploads */
+  .drop { border: 2px dashed #353c4e; border-radius: 12px; padding: 16px; text-align: center; color: var(--muted); cursor: pointer; transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(108,140,255,.07); color: var(--text); }
+  .drop b { color: var(--text); }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 12px; }
+  .gimg { position: relative; aspect-ratio: 16/10; border-radius: 9px; overflow: hidden; border: 2px solid var(--line); cursor: pointer; padding: 0; background: repeating-conic-gradient(#2a2f3c 0 25%, #20242f 0 50%) 0 0/12px 12px; }
+  .gimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gimg[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,140,255,.25); }
+  .gimg .del, .ufont .del { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; font-size: 14px; line-height: 22px; font-weight: 400; }
+  .gimg .none { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: 12px; font-weight: 500; }
+  .ufonts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .ufont { position: relative; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 34px 8px 12px; font-size: 16px; }
+  .ufont small { display: block; font-family: "Segoe UI", sans-serif; font-size: 11px; color: var(--muted); }
+  .ufont .del { top: 50%; transform: translateY(-50%); right: 6px; }
+
+  .urlrow { display: flex; gap: 8px; }
+  .urlrow input { font-family: Consolas, ui-monospace, monospace; font-size: 13px; }
+  ol.steps { margin: 14px 0 0; padding-left: 20px; color: var(--muted); }
+  ol.steps li { margin: 5px 0; } ol.steps b { color: var(--text); }
+  .tip { margin-top: 12px; font-size: 12.5px; color: var(--muted); background: var(--panel2); border-radius: 10px; padding: 10px 12px; }
+  .tip b { color: var(--ok); }
+
+  /* preview */
+  .side { position: sticky; top: 72px; align-self: start; }
+  .preview-card { padding: 0; overflow: hidden; }
+  .preview-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .preview-head h2 { margin: 0; }
+  .preview-head .spacer { flex: 1; }
+  .bgs { display: flex; gap: 6px; }
+  .bgs button { width: 22px; height: 22px; padding: 0; border-radius: 6px; border: 2px solid transparent; }
+  .bgs button[aria-pressed=true] { border-color: var(--accent); }
+  .stage { position: relative; height: min(70vh, 660px); min-height: 360px; }
+  .stage.checker { background: repeating-conic-gradient(#20242e 0 25%, #171a22 0 50%) 0 0 / 24px 24px; }
+  .stage.dark { background: #0b0b0e; } .stage.light { background: #e9ecf2; } .stage.green { background: #00b140; }
+  .stage.game { background: radial-gradient(circle at 70% 20%, #f4b26a 0, transparent 35%), linear-gradient(160deg, #2b4a6b, #5d3b5e 55%, #b0674a); }
+  .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .preview-foot { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .preview-foot label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0; background: #252a37; color: var(--text); padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); transition: .25s; pointer-events: none; z-index: 40; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+  .toast.err { border-color: var(--bad); }
+  .offline-banner { display: none; background: #3a1d22; color: #ffd0d5; border-bottom: 1px solid #5a2830; padding: 10px 24px; font-size: 13px; }
+  .offline-banner.show { display: block; }
+</style>
+<script src="/assets/fonts.js"></script>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"><span style="background:var(--twitch)"></span><span style="background:var(--kick)"></span><span style="background:var(--youtube)"></span></div>
+  <h1>MultiChat</h1>
+  <nav>
+    <a href="#sec-channels">Channels</a><a href="#sec-theme">Theme</a><a href="#sec-fonts">Fonts</a><a href="#sec-colors">Colors</a>
+    <a href="#sec-bg">Background</a><a href="#sec-layout">Layout</a><a href="#sec-obs">OBS</a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="saved" id="saved">All changes saved</span>
+  <div class="me" id="me">
+    <button class="mebtn" id="mebtn" aria-haspopup="menu" aria-expanded="false"><img id="me-avatar" alt=""><span id="me-name"></span> ▾</button>
+    <div class="memenu" id="memenu" role="menu" hidden>
+      <button role="menuitem" id="signout">Sign out</button>
+    </div>
+  </div>
+</header>
+<div class="offline-banner" id="offline">Can’t reach MultiChat right now. Check your internet connection — this page will reconnect by itself.</div>
+
+<main>
+  <div>
+    <!-- 1. channels -->
+    <section class="card" id="sec-channels">
+      <h2><span class="num">1</span> Your channels</h2>
+      <p class="lead">Connect the accounts you stream from — their chat shows up automatically whenever you’re live.</p>
+      <div class="chan" data-p="twitch">
+        <div class="ico"></div>
+        <div class="chanhead"><label for="twitch">Twitch</label><span class="acct" id="acct-twitch"></span></div>
+        <div class="inwrap"><input type="text" id="twitch" placeholder="Channel name, e.g. shroud" autocomplete="off" spellcheck="false"><button class="clear" title="Clear" aria-label="Clear">×</button></div>
+        <div class="state" id="state-twitch"></div>
+      </div>
+      <div class="chan" data-p="kick">
+        <div class="ico"></div>
+        <div class="chanhead"><label for="kick">Kick</label><span class="acct" id="acct-kick"></span></div>
+        <div class="inwrap"><input type="text" id="kick" placeholder="Channel name, e.g. xqc" autocomplete="off" spellcheck="false"><button class="clear" title="Clear" aria-label="Clear">×</button></div>
+        <div class="state" id="state-kick"></div>
+      </div>
+      <div class="chan" data-p="youtube">
+        <div class="ico"></div>
+        <div class="chanhead"><label for="youtube">YouTube</label><span class="acct" id="acct-youtube"></span></div>
+        <div class="inwrap"><input type="text" id="youtube" placeholder="@handle, e.g. @LofiGirl" autocomplete="off" spellcheck="false"><button class="clear" title="Clear" aria-label="Clear">×</button></div>
+        <div class="state" id="state-youtube"></div>
+      </div>
+      <div class="hint">Connecting fills in your channel. You can also type any channel name to show its chat.</div>
+    </section>
+
+    <!-- 2. theme -->
+    <section class="card" id="sec-theme">
+      <h2><span class="num">2</span> Theme</h2>
+      <p class="lead">Pick a starting look. Any fonts, colors or background you set below are applied on top of it.</p>
+      <div class="themes" id="themes"></div>
+      <div class="hint">Want your own? Ask Claude to “add a theme that looks like …”, or copy <code>themes/_template.css</code>. New themes show up here automatically.</div>
+    </section>
+
+    <!-- 3. fonts -->
+    <section class="card" id="sec-fonts">
+      <h2><span class="num">3</span> Fonts</h2>
+      <div class="grid2">
+        <div class="f"><span>Message font</span><div class="fontpick" data-key="fontMessage"></div></div>
+        <div class="f"><span>Username font</span><div class="fontpick" data-key="fontName"></div></div>
+        <label class="f"><span>Text size <b id="size-v"></b></span><input type="range" id="size" min="10" max="48" step="1"></label>
+        <label class="tg" style="align-self:end"><span>Bold usernames</span><input type="checkbox" id="nameBold"></label>
+      </div>
+      <h3>Your own fonts</h3>
+      <div class="drop" id="fontdrop" tabindex="0" role="button"><b>Upload a font file</b> — drop it here or click to choose<br><small>.ttf, .otf, .woff or .woff2 · it shows up in the font pickers under “Your fonts”</small></div>
+      <input type="file" id="fontfile" accept=".ttf,.otf,.woff,.woff2" hidden multiple>
+      <div class="ufonts" id="ufonts"></div>
+    </section>
+
+    <!-- 4. colors -->
+    <section class="card" id="sec-colors">
+      <h2><span class="num">4</span> Colors</h2>
+      <p class="lead">Colors you don’t set use the theme’s colors. Click ↺ to go back to the theme default.</p>
+      <div class="f" style="margin-bottom:14px"><span>Username colors</span>
+        <div class="seg" id="nameMode" role="group">
+          <button data-v="theme">Theme default</button><button data-v="user">Chatters’ own colors</button>
+          <button data-v="platform">Platform colors</button><button data-v="custom">One color</button>
+        </div>
+      </div>
+      <div class="colors">
+        <div class="cfield" data-key="textColor" data-label="Message text"></div>
+        <div class="cfield" data-key="nameColor" data-label="Username (one color / fallback)"></div>
+        <div class="cfield" data-key="outlineColor" data-label="Text outline"></div>
+        <div class="cfield" data-key="highlightColor" data-label="Super Chats & highlights"></div>
+        <div class="cfield" data-key="twitchColor" data-label="Twitch accent"></div>
+        <div class="cfield" data-key="kickColor" data-label="Kick accent"></div>
+        <div class="cfield" data-key="youtubeColor" data-label="YouTube accent"></div>
+      </div>
+      <h3>Message bubbles</h3>
+      <label class="tg"><span>Show a bubble behind each message<small>Some themes always draw bubbles</small></span><input type="checkbox" id="boxed"></label>
+      <div class="grid2" style="margin-top:6px">
+        <div class="cfield" data-key="bubbleColor" data-label="Bubble color"></div>
+        <label class="f"><span>Bubble opacity <b id="bubbleOpacity-v"></b></span><input type="range" id="bubbleOpacity" min="0" max="100" step="5"></label>
+      </div>
+    </section>
+
+    <!-- 5. background -->
+    <section class="card" id="sec-bg">
+      <h2><span class="num">5</span> Chat background</h2>
+      <div class="grid2">
+        <div class="cfield" data-key="chatBgColor" data-label="Background color"></div>
+        <label class="f"><span>Background color opacity <b id="chatBgOpacity-v"></b></span><input type="range" id="chatBgOpacity" min="0" max="100" step="5"></label>
+      </div>
+      <h3>Background image</h3>
+      <div class="drop" id="imgdrop" tabindex="0" role="button"><b>Upload an image</b> — drop it here or click to choose<br><small>PNG, JPG, GIF (animated works), WEBP or SVG · up to 30 MB</small></div>
+      <input type="file" id="imgfile" accept="image/*" hidden multiple>
+      <div class="gallery" id="gallery"></div>
+      <label class="f" style="display:block;margin-top:12px"><span>…or use an image link</span><input type="url" id="bgImage" placeholder="https://… (leave empty for no image)" spellcheck="false"></label>
+
+      <div id="bg-opts" class="sub">
+        <div class="f" style="margin-bottom:12px"><span>Show the image</span>
+          <div class="seg" id="bgTarget" role="group"><button data-v="chat">Behind the whole chat</button><button data-v="messages">Behind each message</button></div>
+        </div>
+        <div class="grid2">
+          <label class="f"><span>Fit</span>
+            <select id="bgFit"><option value="cover">Fill (crop to fit)</option><option value="contain">Fit (show whole image)</option><option value="tile">Tile / repeat</option><option value="stretch">Stretch</option></select>
+          </label>
+          <label class="f"><span>Position</span>
+            <select id="bgPosition"><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select>
+          </label>
+          <label class="f"><span>Image opacity <b id="bgImageOpacity-v"></b></span><input type="range" id="bgImageOpacity" min="5" max="100" step="5"></label>
+          <label class="f"><span>Blur <b id="bgBlur-v"></b></span><input type="range" id="bgBlur" min="0" max="30" step="1"></label>
+        </div>
+      </div>
+      <label class="f" style="display:block;margin-top:12px"><span>Rounded corners <b id="bgRadius-v"></b></span><input type="range" id="bgRadius" min="0" max="40" step="1"></label>
+    </section>
+
+    <!-- 6. layout -->
+    <section class="card" id="sec-layout">
+      <h2><span class="num">6</span> Layout &amp; behavior</h2>
+      <div class="grid2">
+        <label class="f"><span>Messages on screen <b id="max-v"></b></span><input type="range" id="max" min="5" max="150" step="5"></label>
+        <label class="f"><span>Hide messages after</span>
+          <select id="fade">
+            <option value="0">Never (keep them)</option><option value="10">10 seconds</option><option value="20">20 seconds</option>
+            <option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option>
+          </select>
+        </label>
+      </div>
+      <div class="f" style="margin:14px 0 6px"><span>Text alignment</span>
+        <div class="seg" id="align" role="group"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div>
+      </div>
+      <div class="toggles">
+        <label class="tg"><span>Platform icons<small>Twitch / Kick / YouTube logo</small></span><input type="checkbox" id="icons"></label>
+        <label class="tg"><span>Badges<small>Mod, VIP, sub, member…</small></span><input type="checkbox" id="badges"></label>
+        <label class="tg"><span>Text outline<small>Readable on any background</small></span><input type="checkbox" id="shadow"></label>
+        <label class="tg"><span>Entry animation</span><input type="checkbox" id="animate"></label>
+      </div>
+      <h3>Filters</h3>
+      <label class="tg"><span>Hide bot commands<small>Skips messages starting with “!” like !discord</small></span><input type="checkbox" id="hidecmd"></label>
+      <label class="f" style="display:block;margin-top:8px"><span>Hide messages from these users (comma separated)</span><textarea id="ignore" rows="2" spellcheck="false"></textarea></label>
+    </section>
+
+    <!-- 7. OBS -->
+    <section class="card" id="sec-obs">
+      <h2><span class="num">7</span> Add it to OBS</h2>
+      <div class="urlrow"><input type="text" id="obsurl" readonly aria-label="Overlay URL"><button id="copy">Copy URL</button></div>
+      <ol class="steps">
+        <li>In OBS, click <b>+</b> under <b>Sources</b> → <b>Browser</b> → name it “MultiChat”.</li>
+        <li>Paste the URL above into <b>URL</b> (leave “Local file” unchecked).</li>
+        <li>Set <b>Width 400</b> and <b>Height 600</b>, then click OK and position it.</li>
+      </ol>
+      <div class="tip"><b>You only do this once.</b> Everything you change on this page — themes, fonts, colors, backgrounds — shows up in OBS instantly, and chat appears by itself whenever you go live. Keep this link private: anyone with it can show your overlay.</div>
+      <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap">
+        <a id="openoverlay" target="_blank" rel="noopener">Open the overlay in a new tab</a>
+        <button class="link" id="regen">Get a new link (the old one stops working)</button>
+        <button class="link" id="reset">Reset all styling to defaults (keeps channels)</button>
+      </div>
+    </section>
+
+    <section class="card danger">
+      <h2>Account</h2>
+      <p class="lead" style="margin-bottom:10px">Deleting your account removes your settings, uploads and overlay link from MultiChat. It can’t be undone.</p>
+      <button class="ghost dangerbtn" id="deleteacct">Delete my MultiChat account</button>
+    </section>
+  </div>
+
+  <aside class="side">
+    <section class="card preview-card">
+      <div class="preview-head">
+        <h2>Live preview</h2>
+        <div class="spacer"></div>
+        <div class="bgs" role="group" aria-label="Preview background">
+          <button data-bg="checker" title="Transparent" style="background:repeating-conic-gradient(#444 0 25%,#222 0 50%) 0 0/8px 8px"></button>
+          <button data-bg="game" title="Gameplay-ish" style="background:linear-gradient(160deg,#2b4a6b,#b0674a)"></button>
+          <button data-bg="dark" title="Dark" style="background:#0b0b0e"></button>
+          <button data-bg="light" title="Light" style="background:#e9ecf2"></button>
+          <button data-bg="green" title="Green screen" style="background:#00b140"></button>
+        </div>
+      </div>
+      <div class="stage checker" id="stage"><iframe id="preview" title="Overlay preview"></iframe></div>
+      <div class="preview-foot">
+        <button class="ghost" id="test">Send test messages</button>
+        <label><input type="checkbox" id="demo"> Show sample chat</label>
+        <span style="flex:1"></span>
+        <span id="conn" class="pill" style="font-size:12.5px"></span>
+      </div>
+    </section>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(async () => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const $$ = sel => [...document.querySelectorAll(sel)];
+
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+  const ICONS = {
+    twitch: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#9146ff"/><path fill="#fff" d="M6.5 4 5 7.5V18h3.6v2h2l2-2h2.8L19 14.4V4zm11 9.7-2.2 2.2h-3.4l-1.9 1.9v-1.9H7.8V5.4h9.7zM15.4 8h-1.4v4h1.4zm-3.8 0h-1.4v4h1.4z"/></svg>',
+    kick: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#53fc18"/><path fill="#000" d="M6 5h4v4h2V7h2V5h4v5h-2v2h-2v0h2v2h2v5h-4v-2h-2v-2h-2v4H6z"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#ff0033"/><path fill="#fff" d="M9.5 7.5v9l7.5-4.5z"/></svg>',
+  };
+  $$('.chan').forEach(c => c.querySelector('.ico').innerHTML = ICONS[c.dataset.p]);
+  const PLATFORMS = ['twitch', 'kick', 'youtube'];
+
+  const toast = (msg, err) => { const t = $('toast'); t.textContent = msg; t.classList.toggle('err', !!err); t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); };
+  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  // every API call: send the user back to the sign-in page if their session ended
+  const api = async (url, opts) => {
+    const r = await fetch(url, opts);
+    if (r.status === 401) { location.href = '/'; throw new Error('signed out'); }
+    return r;
+  };
+  const getJson = url => api(url).then(r => r.json());
+
+  // ---------- load ----------
+  let me, settings, defaults, themes = [], uploads = { images: [], fonts: [] };
+  try {
+    [me, settings, defaults, themes, uploads] = await Promise.all(['/api/me', '/api/settings', '/api/defaults', '/api/themes', '/api/uploads'].map(getJson));
+  } catch { $('offline').classList.add('show'); return; }
+  const FIELDS = Object.keys(defaults);
+
+  // ---------- account: header menu, overlay link, connected platforms ----------
+  let overlayUrl = me.overlayUrl;
+  const setOverlayLink = () => { $('obsurl').value = overlayUrl; $('openoverlay').href = me.overlayPath; };
+  setOverlayLink();
+  $('me-name').textContent = me.user.displayName || 'My account';
+  if (me.user.avatar) $('me-avatar').src = me.user.avatar;
+  $('mebtn').onclick = e => { e.stopPropagation(); const open = $('memenu').hidden; $('memenu').hidden = !open; $('mebtn').setAttribute('aria-expanded', open); };
+  document.addEventListener('click', () => { $('memenu').hidden = true; });
+  $('signout').onclick = async () => { await fetch('/auth/logout', { method: 'POST' }).catch(() => {}); location.href = '/'; };
+
+  const PROVIDER = { twitch: 'twitch', kick: 'kick', youtube: 'google' };
+  const NAMES = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' };
+  function renderAccounts() {
+    for (const p of ['twitch', 'kick', 'youtube']) {
+      const box = $('acct-' + p); box.replaceChildren();
+      const a = me.accounts.find(x => x.provider === p);
+      if (a) {
+        if (a.avatar) box.append(el('img', { src: a.avatar, alt: '' }));
+        box.append('Connected as ', el('b', { textContent: a.display_name || a.login }));
+        const dis = el('button', { type: 'button', className: 'link', textContent: 'Disconnect' });
+        dis.onclick = async () => {
+          if (!confirm(`Disconnect your ${NAMES[p]} account? Its chat will stop showing on your overlay.`)) return;
+          const r = await api('/api/accounts/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p }) });
+          const j = await r.json();
+          if (!r.ok) return toast(j.error || 'Could not disconnect', true);
+          me.accounts = me.accounts.filter(x => x.provider !== p);
+          $(p).value = ''; settings[p] = ''; renderAccounts(); refresh(); renderStates();
+          toast(`${NAMES[p]} disconnected`);
+        };
+        box.append(dis);
+      } else if (me.providers.includes(PROVIDER[p])) {
+        box.append(el('a', { className: 'connect button ' + p, href: '/auth/' + PROVIDER[p], textContent: `Connect ${NAMES[p]}` }));
+      }
+    }
+  }
+  renderAccounts();
+
+  $('regen').onclick = async () => {
+    if (!confirm('Get a new overlay link? Your current link stops working right away, so you’ll need to paste the new one into OBS.')) return;
+    const j = await (await api('/api/overlay/regenerate', { method: 'POST' })).json();
+    overlayUrl = j.overlayUrl; me.overlayPath = j.overlayPath; setOverlayLink();
+    $('preview').src = me.overlayPath + '?preview=1';
+    toast('New link ready — copy it into OBS');
+  };
+  $('deleteacct').onclick = async () => {
+    if (prompt('This permanently deletes your MultiChat settings, uploads and overlay link.\n\nType DELETE to confirm.') !== 'DELETE') return;
+    await api('/api/account/delete', { method: 'POST' });
+    location.href = '/?deleted=1';
+  };
+
+  // messages after coming back from a sign-in page
+  {
+    const q = new URLSearchParams(location.search);
+    const errs = { in_use: 'That account is already connected to a different MultiChat account.', cancelled: 'Connection cancelled.', expired: 'That took too long — please try again.', no_channel: 'That Google account doesn’t have a YouTube channel.', signin_failed: 'Couldn’t connect that account. Please try again.' };
+    if (q.get('connected')) setTimeout(() => toast(`${NAMES[q.get('connected')] || 'Account'} connected — its chat is now on your overlay`), 300);
+    if (q.get('welcome')) setTimeout(() => toast('Welcome to MultiChat! Pick a look, then add your link to OBS.'), 300);
+    if (q.get('error')) setTimeout(() => toast(errs[q.get('error')] || 'Something went wrong', true), 300);
+    if ([...q.keys()].length) history.replaceState(null, '', '/setup' + location.hash);
+  }
+
+  // ---------- custom widgets: color fields, segmented buttons, font pickers ----------
+  const state = {}; // values for widgets that aren't plain inputs
+  function setColor(key, v) {
+    state[key] = v || '';
+    const f = document.querySelector(`.cfield[data-key="${key}"]`); if (!f) return;
+    f.classList.toggle('unset', !v);
+    f.querySelector('input').value = v || '#ffffff';
+    f.querySelector('small').textContent = v ? v.toUpperCase() : 'Theme default';
+  }
+  $$('.cfield').forEach(f => {
+    const key = f.dataset.key;
+    const input = el('input', { type: 'color', title: f.dataset.label });
+    const reset = el('button', { className: 'reset', type: 'button', title: 'Use theme default', textContent: '↺' });
+    f.append(input, el('span', { className: 'lbl' }, f.dataset.label, el('small')), reset);
+    input.addEventListener('input', () => { setColor(key, input.value); changed(250); });
+    reset.onclick = () => { setColor(key, ''); changed(0); };
+  });
+  function setSeg(key, v) {
+    state[key] = v;
+    $$(`#${key} button`).forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v));
+  }
+  ['nameMode', 'bgTarget', 'align'].forEach(key => $$(`#${key} button`).forEach(b => b.onclick = () => { setSeg(key, b.dataset.v); refresh(); changed(0); }));
+
+  // fonts
+  const FONTS = window.MC_FONTS || [], GROUPS = window.MC_FONT_GROUPS || {};
+  const uploadedFamily = file => 'mc-upload-' + file.replace(/[^\w-]/g, '_');
+  const familyCss = v => !v ? '"Segoe UI", sans-serif' : v.startsWith('file:') ? `"${uploadedFamily(v.slice(5))}"` : `"${v}"`;
+  const fontLabel = v => !v ? 'Theme default' : v.startsWith('file:') ? v.slice(5).replace(/\.[^.]+$/, '') : v;
+  const loadedUploads = new Set();
+  function loadUploadedFonts() {
+    for (const f of uploads.fonts) {
+      if (loadedUploads.has(f.name)) continue;
+      loadedUploads.add(f.name);
+      new FontFace(uploadedFamily(f.name), `url("${f.url}")`).load().then(ff => document.fonts.add(ff)).catch(() => {});
+    }
+  }
+  let previewFontsLoaded = false;
+  function loadPreviewFonts() { // every Google font, subset to the letters of its own name so it stays light
+    if (previewFontsLoaded) return; previewFontsLoaded = true;
+    const g = FONTS.filter(f => f.source === 'google');
+    for (let i = 0; i < g.length; i += 25) {
+      const chunk = g.slice(i, i + 25);
+      const text = [...new Set(chunk.map(f => f.name).join('') + 'Aa')].join('');
+      document.head.append(el('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?' + chunk.map(f => 'family=' + encodeURIComponent(f.name).replace(/%20/g, '+')).join('&') + '&text=' + encodeURIComponent(text) + '&display=swap' }));
+    }
+  }
+  function loadOneFont(v) {
+    const f = FONTS.find(x => x.name === v);
+    if (f?.source === 'google') document.head.append(el('link', { rel: 'stylesheet', href: `https://fonts.googleapis.com/css2?family=${encodeURIComponent(v).replace(/%20/g, '+')}&text=${encodeURIComponent(v + 'Aa')}&display=swap` }));
+  }
+  let openPicker = null;
+  function closePicker() { if (openPicker) { openPicker.querySelector('.fontpop')?.remove(); openPicker = null; } }
+  document.addEventListener('click', e => { if (openPicker && !openPicker.contains(e.target)) closePicker(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicker(); });
+  function setFont(key, v) {
+    state[key] = v || '';
+    const box = document.querySelector(`.fontpick[data-key="${key}"]`);
+    const btn = box.querySelector('.fontbtn');
+    btn.firstChild.textContent = fontLabel(v);
+    btn.firstChild.style.fontFamily = familyCss(v);
+    if (v) loadOneFont(v);
+  }
+  $$('.fontpick').forEach(box => {
+    const key = box.dataset.key;
+    const btn = el('button', { type: 'button', className: 'fontbtn' }, el('span'), el('small', { textContent: 'Change ▾' }));
+    box.append(btn);
+    btn.onclick = e => {
+      e.stopPropagation();
+      if (openPicker === box) return closePicker();
+      closePicker(); openPicker = box; loadPreviewFonts(); loadUploadedFonts();
+      let cat = 'all';
+      const search = el('input', { type: 'text', placeholder: `Search ${FONTS.length + uploads.fonts.length} fonts…`, spellcheck: false });
+      const cats = el('div', { className: 'fontcats' });
+      const list = el('div', { className: 'fontlist' });
+      const pop = el('div', { className: 'fontpop' }, search, cats, list);
+      const catDefs = [['all', 'All'], ...(uploads.fonts.length ? [['mine', 'Your fonts']] : []), ...Object.entries(GROUPS)];
+      for (const [id, label] of catDefs) {
+        const b = el('button', { type: 'button', textContent: label.replace(' & ', ' & ') });
+        b.setAttribute('aria-pressed', id === cat);
+        b.onclick = () => { cat = id; [...cats.children].forEach(x => x.setAttribute('aria-pressed', x === b)); render(); };
+        cats.append(b);
+      }
+      const option = (v, sample, tag) => {
+        const o = el('button', { type: 'button', className: state[key] === v ? 'cur' : '' }, el('span', { textContent: sample }), el('small', { textContent: tag }));
+        o.firstChild.style.fontFamily = familyCss(v);
+        o.onclick = () => { setFont(key, v); closePicker(); changed(0); };
+        return o;
+      };
+      function render() {
+        const q = search.value.trim().toLowerCase();
+        list.replaceChildren();
+        if (!q && cat === 'all') list.append(option('', 'Theme default', 'uses the theme’s font'));
+        const mine = uploads.fonts.filter(f => (cat === 'all' || cat === 'mine') && f.name.toLowerCase().includes(q));
+        if (mine.length) { list.append(el('div', { className: 'grp', textContent: 'Your fonts' })); mine.forEach(f => list.append(option('file:' + f.name, fontLabel('file:' + f.name), 'uploaded'))); }
+        for (const [g, label] of Object.entries(GROUPS)) {
+          if (cat !== 'all' && cat !== g) continue;
+          const items = FONTS.filter(f => f.group === g && f.name.toLowerCase().includes(q));
+          if (!items.length) continue;
+          list.append(el('div', { className: 'grp', textContent: `${label} (${items.length})` }));
+          items.forEach(f => list.append(option(f.name, f.name, f.source === 'system' ? 'Windows' : '')));
+        }
+        if (!list.children.length) list.append(el('div', { className: 'empty', textContent: 'No fonts match that search.' }));
+      }
+      search.oninput = render;
+      render();
+      box.append(pop);
+      search.focus();
+      list.querySelector('.cur')?.scrollIntoView({ block: 'center' });
+    };
+  });
+
+  // ---------- fill / read ----------
+  function fill(s) {
+    for (const k of FIELDS) {
+      const v = s[k];
+      if (document.querySelector(`.cfield[data-key="${k}"]`)) setColor(k, v);
+      else if (document.querySelector(`.fontpick[data-key="${k}"]`)) setFont(k, v);
+      else if ($(k)?.classList.contains('seg')) setSeg(k, v);
+      else if ($(k)) { if ($(k).type === 'checkbox') $(k).checked = !!v; else $(k).value = v; }
+    }
+    state.theme = s.theme;
+    renderThemes(); refresh();
+  }
+  function read() {
+    const out = { theme: state.theme };
+    for (const k of FIELDS) {
+      if (k in state && k !== 'theme') { out[k] = state[k]; continue; }
+      const e = $(k); if (!e || e.classList?.contains('seg')) continue;
+      out[k] = e.type === 'checkbox' ? e.checked : (e.type === 'range' || k === 'fade') ? +e.value : e.value;
+    }
+    return out;
+  }
+  function refresh() {
+    $('size-v').textContent = $('size').value + ' px';
+    $('max-v').textContent = $('max').value;
+    for (const k of ['bubbleOpacity', 'chatBgOpacity', 'bgImageOpacity']) $(k + '-v').textContent = $(k).value + '%';
+    $('bgBlur-v').textContent = $('bgBlur').value + ' px';
+    $('bgRadius-v').textContent = $('bgRadius').value + ' px';
+    $('bg-opts').hidden = !$('bgImage').value.trim();
+    $$('.inwrap').forEach(w => w.classList.toggle('has', !!w.querySelector('input').value));
+    renderGallery();
+  }
+
+  // ---------- save ----------
+  let saveT;
+  const savedEl = $('saved');
+  function changed(delay = 400) {
+    savedEl.textContent = 'Saving…'; savedEl.classList.remove('on');
+    clearTimeout(saveT);
+    saveT = setTimeout(async () => {
+      try {
+        const r = await api('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(read()) });
+        settings = await r.json();
+        savedEl.textContent = '✓ Saved — OBS updated'; savedEl.classList.add('on');
+        clearTimeout(changed.t); changed.t = setTimeout(() => { savedEl.textContent = 'All changes saved'; savedEl.classList.remove('on'); }, 2500);
+        $('offline').classList.remove('show');
+        renderStates();
+        if (!store.get(DEMO_KEY) && $('demo').checked !== noChannels()) $('demo').checked = noChannels();
+      } catch { savedEl.textContent = 'Not saved — check your connection'; $('offline').classList.add('show'); }
+    }, delay);
+  }
+  $$('main input, main select, main textarea').forEach(e => {
+    if (['obsurl', 'demo', 'fontfile', 'imgfile'].includes(e.id) || e.type === 'color' || !e.id) return;
+    const isChannel = PLATFORMS.includes(e.id);
+    const isText = e.type === 'text' || e.type === 'url' || e.tagName === 'TEXTAREA';
+    e.addEventListener(isText ? 'input' : 'change', () => {
+      refresh();
+      changed(isChannel ? 900 : isText ? 800 : 200);
+      if (isChannel) scheduleCheck(e.id);
+    });
+    if (e.type === 'range') e.addEventListener('input', refresh);
+  });
+  $$('.clear').forEach(b => b.onclick = () => { const i = b.parentElement.querySelector('input'); i.value = ''; i.dispatchEvent(new Event('input')); i.focus(); });
+  $('reset').onclick = () => {
+    if (!confirm('Reset theme, fonts, colors, background and layout to defaults? Your channels stay.')) return;
+    fill({ ...defaults, twitch: $('twitch').value, kick: $('kick').value, youtube: $('youtube').value });
+    changed(0); toast('Styling reset to defaults');
+  };
+
+  // ---------- themes ----------
+  function renderThemes() {
+    const box = $('themes'); box.replaceChildren();
+    if (!themes.some(t => t.id === state.theme)) themes.push({ id: state.theme, name: state.theme + ' (missing file)', description: 'This theme file was removed — pick another.', swatch: ['#553'] });
+    for (const t of themes) {
+      const sw = el('div', { className: 'sw' }, ...(t.swatch.length ? t.swatch : ['#333', '#555']).map(c => { const i = el('i'); i.style.background = c; return i; }));
+      const b = el('button', { type: 'button', className: 'theme', title: t.author ? 'by ' + t.author : '' }, sw, el('div', { className: 'tx' }, el('b', { textContent: t.name }), el('small', { textContent: t.description || '' })));
+      b.setAttribute('aria-pressed', t.id === state.theme);
+      b.onclick = () => { state.theme = t.id; renderThemes(); changed(0); };
+      box.append(b);
+    }
+  }
+  async function reloadThemes() { try { themes = await (await api('/api/themes')).json(); renderThemes(); } catch {} }
+
+  // ---------- uploads ----------
+  async function reloadUploads() { try { uploads = await (await api('/api/uploads')).json(); loadUploadedFonts(); renderGallery(); renderUFonts(); } catch {} }
+  async function upload(kind, files) {
+    for (const file of files) {
+      toast(`Uploading ${file.name}…`);
+      try {
+        const r = await api(`/api/upload?kind=${kind}&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+        const j = await r.json();
+        if (!r.ok) { toast(j.error || 'Upload failed', true); continue; }
+        await reloadUploads();
+        if (kind === 'images') { $('bgImage').value = decodeURIComponent(j.url); refresh(); changed(0); toast('Background image set'); }
+        else { setFont('fontMessage', 'file:' + j.name); changed(0); toast(`Font “${fontLabel('file:' + j.name)}” added and selected`); }
+      } catch { toast('Upload failed — check your connection', true); }
+    }
+  }
+  function wireDrop(dropId, inputId, kind) {
+    const d = $(dropId), inp = $(inputId);
+    d.onclick = () => inp.click();
+    d.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } };
+    inp.onchange = () => { upload(kind, [...inp.files]); inp.value = ''; };
+    d.ondragover = e => { e.preventDefault(); d.classList.add('over'); };
+    d.ondragleave = () => d.classList.remove('over');
+    d.ondrop = e => { e.preventDefault(); d.classList.remove('over'); upload(kind, [...e.dataTransfer.files]); };
+  }
+  wireDrop('imgdrop', 'imgfile', 'images');
+  wireDrop('fontdrop', 'fontfile', 'fonts');
+
+  async function removeUpload(kind, name) {
+    if (!confirm(`Delete ${name}? This removes the file from the uploads folder.`)) return;
+    await api(`/api/upload?kind=${kind}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+    if (kind === 'images' && decodeURIComponent($('bgImage').value) === `/uploads/images/${name}`) { $('bgImage').value = ''; changed(0); }
+    if (kind === 'fonts') for (const k of ['fontMessage', 'fontName']) if (state[k] === 'file:' + name) { setFont(k, ''); changed(0); }
+    reloadUploads();
+  }
+  function renderGallery() {
+    const g = $('gallery'); g.replaceChildren();
+    const cur = decodeURIComponent($('bgImage').value.trim());
+    const none = el('button', { type: 'button', className: 'gimg' }, el('span', { className: 'none', textContent: 'No image' }));
+    none.setAttribute('aria-pressed', !cur);
+    none.onclick = () => { $('bgImage').value = ''; refresh(); changed(0); };
+    g.append(none);
+    for (const img of uploads.images) {
+      const path = decodeURIComponent(img.url);
+      const b = el('button', { type: 'button', className: 'gimg', title: img.name }, el('img', { src: img.url, alt: img.name, loading: 'lazy' }));
+      const del = el('button', { type: 'button', className: 'del', title: 'Delete', textContent: '×' });
+      del.onclick = e => { e.stopPropagation(); removeUpload('images', img.name); };
+      b.append(del);
+      b.setAttribute('aria-pressed', cur === path);
+      b.onclick = () => { $('bgImage').value = path; refresh(); changed(0); };
+      g.append(b);
+    }
+  }
+  function renderUFonts() {
+    const box = $('ufonts'); box.replaceChildren();
+    for (const f of uploads.fonts) {
+      const v = 'file:' + f.name;
+      const sample = el('div', { className: 'ufont' }, el('span', { textContent: fontLabel(v) }), el('small', { textContent: f.name }));
+      sample.firstChild.style.fontFamily = familyCss(v);
+      const del = el('button', { type: 'button', className: 'del', title: 'Delete', textContent: '×' });
+      del.onclick = () => removeUpload('fonts', f.name);
+      sample.append(del);
+      box.append(sample);
+    }
+  }
+
+  // ---------- channel checks + live connection status ----------
+  const checks = {}, live = {}, checkT = {};
+  function scheduleCheck(p) {
+    clearTimeout(checkT[p]);
+    const v = $(p).value.trim();
+    if (!v) { delete checks[p]; renderStates(); return; }
+    checks[p] = { name: v, result: null };
+    renderStates();
+    checkT[p] = setTimeout(async () => {
+      try {
+        const r = await (await api(`/api/check?platform=${p}&name=${encodeURIComponent(v)}`)).json();
+        if ($(p).value.trim() === v) { checks[p] = { name: v, result: r }; renderStates(); }
+      } catch {}
+    }, 700);
+  }
+  const normalize = (p, v) => {
+    v = (v || '').trim();
+    if (p === 'twitch') return v.toLowerCase().replace(/^.*twitch\.tv\//, '').replace(/[^a-z0-9_]/g, '');
+    if (p === 'kick') return v.toLowerCase().replace(/^.*kick\.com\//, '').replace(/[^a-z0-9_-]/g, '');
+    return v.toLowerCase();
+  };
+  const pill = (cls, text) => el('span', { className: 'pill ' + cls }, el('span', { className: 'dot' }), text);
+  function renderStates() {
+    let anyConnected = 0, anyChannel = 0;
+    for (const p of PLATFORMS) {
+      const box = $('state-' + p); box.replaceChildren();
+      const v = $(p).value.trim();
+      if (!v) { box.append(el('span', { textContent: 'Not used' })); continue; }
+      anyChannel++;
+      const c = checks[p];
+      if (c && c.name === v) {
+        if (!c.result) box.append(pill('', 'Checking…'));
+        else if (!c.result.ok) box.append(pill('bad', c.result.reason === 'not found' ? 'Channel not found — check the spelling' : 'Couldn’t check this channel'));
+        else {
+          const s = pill('ok', 'Found ' + c.result.name);
+          if (c.result.live === true) s.append(' ', el('span', { className: 'live', textContent: 'LIVE' }));
+          box.append(s);
+          if (c.result.live === false) box.append(pill('warn', p === 'youtube' ? 'Not live — chat appears once you go live' : 'Offline — chat still works'));
+        }
+      }
+      const st = live[p + ':' + normalize(p, settings[p])];
+      if (st && normalize(p, v) === normalize(p, settings[p])) {
+        const map = { connected: ['ok', 'Chat connected'], connecting: ['', 'Connecting to chat…'], reconnecting: ['warn', 'Reconnecting…'], waiting: ['warn', 'Waiting for stream'], error: ['bad', 'Error: ' + st.detail] };
+        const [cls, text] = map[st.state] || ['', st.state];
+        if (st.state === 'connected') anyConnected++;
+        if (!(st.state === 'waiting' && c?.result?.live === false)) box.append(pill(cls, text));
+      }
+    }
+    $('conn').replaceChildren(!anyChannel ? pill('warn', 'Add a channel to get started') : pill(anyConnected ? 'ok' : '', `${anyConnected} of ${anyChannel} chats connected`));
+  }
+
+  // ---------- preview ----------
+  const BG_KEY = 'multichat.previewBg', DEMO_KEY = 'multichat.demo';
+  function setBg(bg) {
+    $('stage').className = 'stage ' + bg;
+    $$('.bgs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.bg === bg));
+    store.set(BG_KEY, bg);
+  }
+  $$('.bgs button').forEach(b => b.onclick = () => setBg(b.dataset.bg));
+  setBg(store.get(BG_KEY) || 'game');
+  const noChannels = () => !PLATFORMS.some(p => (settings[p] || '').trim());
+  // the preview listens to /api/events like OBS does and reloads itself on every save
+  $('preview').src = me.overlayPath + '?preview=1';
+  $('test').onclick = async () => { try { await api('/api/test', { method: 'POST' }); toast('Test messages sent to the preview and OBS'); } catch { toast('Couldn’t reach MultiChat', true); } };
+  $('copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(overlayUrl); } catch { $('obsurl').select(); document.execCommand('copy'); }
+    $('copy').textContent = 'Copied!'; toast('URL copied — paste it into OBS');
+    setTimeout(() => $('copy').textContent = 'Copy URL', 1600);
+  };
+
+  // ---------- start ----------
+  fill(settings);
+  $('demo').checked = store.get(DEMO_KEY) ? store.get(DEMO_KEY) === '1' : noChannels();
+  $('demo').onchange = () => store.set(DEMO_KEY, $('demo').checked ? '1' : '0');
+  loadUploadedFonts(); renderUFonts();
+  for (const p of PLATFORMS) if ($(p).value.trim()) scheduleCheck(p);
+  renderStates();
+
+  const events = new EventSource('/api/events');
+  events.addEventListener('statuses', e => { for (const s of JSON.parse(e.data)) live[s.platform + ':' + s.channel.toLowerCase()] = s; renderStates(); });
+  events.addEventListener('status', e => { const s = JSON.parse(e.data); live[s.platform + ':' + s.channel.toLowerCase()] = s; renderStates(); });
+  events.addEventListener('themes', reloadThemes);
+  events.addEventListener('uploads', reloadUploads);
+  events.onerror = () => $('offline').classList.add('show');
+  events.onopen = () => $('offline').classList.remove('show');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+/*
+  Copy this file to make a new theme. Files starting with "_" are hidden from the theme list.
+  The file name without .css is the theme id, for example themes/my-theme.css.
+  Full reference: THEMES.md
+
+  @name My Theme
+  @description One sentence describing the look.
+  @author Your name
+  @swatch #111111 #ffffff #9146ff
+*/
+
+/* Optional: load Google Fonts. @import must be the first rule in the file. */
+/* @import url("https://fonts.googleapis.com/css2?family=Inter&display=swap"); */
+
+/* 1) Defaults go in variables. Anything set on the setup page overrides these automatically. */
+:root {
+  /* --mc-font: "Inter", sans-serif; */
+  /* --mc-text: #ffffff; */
+  /* --mc-bubble: rgba(0, 0, 0, .6); */
+}
+
+/* 2) Restyle elements. Use var(--mc-...) wherever a user setting should still apply. */
+/* .msg { }  .meta { }  .plat { }  .badges { }  .name { }  .sep { }  .text { }  .emote { }  #bg { } */

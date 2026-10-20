@@ -1,0 +1,33 @@
+/*
+  @name Retro Pixel
+  @description 8-bit arcade dialog boxes with a chunky pixel font.
+  @swatch #1a1c2c #f4f4f4 #ffcd75 #38b764
+*/
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap");
+
+:root {
+  --mc-font: "VT323", "Consolas", monospace;
+  --mc-name-font: "Press Start 2P", "Consolas", monospace;
+  --mc-line-height: 1.15;
+  --mc-text: #f4f4f4;
+  --mc-bubble: #1a1c2c;
+  --mc-bubble-radius: 0;
+  --mc-highlight: #ffcd75;
+  --mc-outline: transparent;
+}
+#chat { font-size: calc(var(--mc-size) * 1.2); }
+.msg {
+  background-color: var(--mc-bubble);
+  border: 3px solid #f4f4f4;
+  box-shadow: 4px 4px 0 #000;
+  border-radius: 0;
+  padding: .35em .55em;
+  margin: .45em 6px 0 0;
+}
+.animate .msg { animation: mc-pixel-in .2s steps(3); }
+@keyframes mc-pixel-in { from { transform: translateX(-12px); opacity: 0 } to { transform: none; opacity: 1 } }
+.meta { display: block; margin-bottom: .25em; }
+.name { font-size: .5em; letter-spacing: .02em; }
+.sep { display: none; }
+.badge, .plat { image-rendering: pixelated; }
+.msg.superchat, .msg.member, .msg.highlight { border-color: var(--mc-highlight); background-color: var(--mc-bubble); }

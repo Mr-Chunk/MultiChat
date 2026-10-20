@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MultiChat</title>
+<meta name="description" content="Twitch, Kick and YouTube chat in one OBS overlay. Sign in, pick a look, paste one link into OBS.">
+<style>
+  :root { --bg: #0d0f14; --panel: #151821; --panel2: #1b1f2a; --line: #262b38; --text: #e8eaf0; --muted: #8f97a8; --accent: #6c8cff; --twitch: #9146ff; --kick: #53fc18; --youtube: #ff0033; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", Inter, system-ui, sans-serif; }
+  body { background: radial-gradient(900px 500px at 15% -10%, rgba(145,70,255,.22), transparent 60%), radial-gradient(800px 500px at 100% 0%, rgba(255,0,51,.14), transparent 60%), radial-gradient(700px 400px at 60% 110%, rgba(83,252,24,.10), transparent 60%), var(--bg); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: center; gap: 10px; }
+  .logo { display: flex; gap: 3px; } .logo span { width: 10px; height: 24px; border-radius: 3px; }
+  header b { font-size: 18px; }
+  .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; margin-top: 56px; }
+  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; margin-top: 32px; } .demo { order: -1; } }
+  h1 { font-size: clamp(32px, 5vw, 50px); line-height: 1.08; margin: 0 0 14px; letter-spacing: -.02em; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, #b58cff, #ff6b88 55%, #8dff6b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--muted); font-size: 17px; margin: 0 0 26px; max-width: 520px; }
+  .signin { display: grid; gap: 10px; max-width: 360px; }
+  .btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 11px; font-weight: 600; font-size: 15px; text-decoration: none; color: #fff; border: 0; cursor: pointer; font-family: inherit; }
+  .btn:hover { filter: brightness(1.1); }
+  .btn svg { width: 22px; height: 22px; flex: none; }
+  .btn.twitch { background: var(--twitch); } .btn.kick { background: var(--kick); color: #000; } .btn.google { background: #fff; color: #1f1f1f; }
+  .btn.dev { background: var(--panel2); border: 1px dashed #4a5168; color: var(--text); font-weight: 500; }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 12px; max-width: 360px; }
+  .msg { margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; font-size: 14px; max-width: 420px; }
+  .msg.err { background: #3a1d22; color: #ffd0d5; border: 1px solid #5a2830; } .msg.ok { background: #16301f; color: #c6f6d5; border: 1px solid #23502f; }
+  .empty { color: #ffd0d5; background: #3a1d22; border: 1px solid #5a2830; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+
+  .demo { position: relative; height: 380px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line);
+    background: radial-gradient(circle at 70% 20%, #f4b26a 0, transparent 35%), linear-gradient(160deg, #2b4a6b, #5d3b5e 55%, #b0674a); box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .demo .chat { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 16px; }
+  .demo .m { background: rgba(0,0,0,.55); border-radius: 9px; padding: 6px 10px; text-shadow: 0 1px 2px #000; animation: in .35s ease-out both; }
+  .demo .m i { display: inline-block; width: 15px; height: 15px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; }
+  .demo .m b { margin-right: 4px; }
+  @keyframes in { from { transform: translateY(10px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 70px; }
+  @media (max-width: 860px) { .features { grid-template-columns: 1fr; margin-top: 44px; } }
+  .feat { background: rgba(21,24,33,.8); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .feat h3 { margin: 0 0 6px; font-size: 15px; } .feat p { margin: 0; color: var(--muted); font-size: 14px; }
+  footer { margin-top: 50px; color: var(--muted); font-size: 12.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo" aria-hidden="true"><span style="background:var(--twitch)"></span><span style="background:var(--kick)"></span><span style="background:var(--youtube)"></span></div><b>MultiChat</b></header>
+
+  <section class="hero">
+    <div>
+      <h1>All your chats.<br><em>One overlay.</em></h1>
+      <p class="sub">Twitch, Kick and YouTube chat together in OBS. Sign in, pick a look, paste one link into OBS — chat shows up by itself every time you go live. Nothing to install.</p>
+      <div id="msg"></div>
+      <div class="signin" id="signin"></div>
+      <p class="note">MultiChat only sees your public profile and channel name. We never post anything or see your password.</p>
+    </div>
+    <div class="demo" aria-hidden="true"><div class="chat" id="demochat"></div></div>
+  </section>
+
+  <section class="features">
+    <div class="feat"><h3>Three platforms, one feed</h3><p>Messages, emotes and badges from Twitch, Kick and YouTube — including Super Chats — in a single chat box.</p></div>
+    <div class="feat"><h3>Make it yours</h3><p>Themes, 300+ fonts, your own colors, uploaded fonts and background images. Every change shows up in OBS instantly.</p></div>
+    <div class="feat"><h3>Set it once</h3><p>Add the link to OBS one time. MultiChat connects on its own whenever you go live — no apps or windows to keep open.</p></div>
+  </section>
+  <footer>MultiChat isn’t affiliated with Twitch, Kick or YouTube.</footer>
+</div>
+
+<script>
+(async () => {
+  const ICON = {
+    twitch: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 4 5 7.5V18h3.6v2h2l2-2h2.8L19 14.4V4zm11 9.7-2.2 2.2h-3.4l-1.9 1.9v-1.9H7.8V5.4h9.7zM15.4 8h-1.4v4h1.4zm-3.8 0h-1.4v4h1.4z"/></svg>',
+    kick: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 5h4v4h2V7h2V5h4v5h-2v2h-2v0h2v2h2v5h-4v-2h-2v-2h-2v4H6z"/></svg>',
+    google: '<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="4" fill="#ff0033"/><path fill="#fff" d="M10 8.8v6.4l5.4-3.2z"/></svg>',
+  };
+  const LABEL = { twitch: 'Continue with Twitch', kick: 'Continue with Kick', google: 'Continue with YouTube' };
+  const box = document.getElementById('signin');
+  let info = { providers: [], dev: false };
+  try { info = await (await fetch('/auth/providers')).json(); } catch {}
+  for (const p of ['twitch', 'kick', 'google']) {
+    if (!info.providers.includes(p)) continue;
+    const a = document.createElement('a'); a.className = 'btn ' + p; a.href = '/auth/' + p;
+    a.innerHTML = ICON[p]; a.append(LABEL[p]); box.append(a);
+  }
+  if (info.dev) {
+    const a = document.createElement('a'); a.className = 'btn dev'; a.href = '/auth/dev';
+    a.textContent = '🧪 Continue as test user (only on this computer)'; box.append(a);
+  }
+  if (!box.children.length) box.innerHTML = '<div class="empty">Sign-in isn’t set up on this server yet. The owner needs to add Twitch, Kick or Google app keys — see DEPLOY.md.</div>';
+
+  const q = new URLSearchParams(location.search);
+  const errs = { cancelled: 'Sign-in was cancelled.', expired: 'That took too long — please try again.', no_channel: 'That Google account doesn’t have a YouTube channel. Pick the account that owns your channel.', signin_failed: 'Sign-in didn’t work. Please try again.', not_configured: 'That sign-in option isn’t available.', slow_down: 'Too many attempts — wait a minute and try again.' };
+  const msg = document.getElementById('msg');
+  if (q.get('error')) msg.innerHTML = `<div class="msg err"></div>`, msg.firstChild.textContent = errs[q.get('error')] || 'Something went wrong. Please try again.';
+  if (q.get('deleted')) msg.innerHTML = '<div class="msg ok">Your MultiChat account and everything in it has been deleted.</div>';
+  if ([...q.keys()].length) history.replaceState(null, '', '/');
+
+  // decorative sample chat
+  const lines = [['#9146ff', '#4dabf7', 'PixelPilot', 'that clutch was insane'], ['#53fc18', '#69db7c', 'greenwave', 'hello from kick 👋'], ['#ff0033', '#ffa94d', 'Mara Lin', 'first time catching you live!'], ['#9146ff', '#ff8787', 'n0vacane', 'be nice in chat'], ['#53fc18', '#ffd43b', 'Stormy', 'what game is next?'], ['#ff0033', '#da77f2', 'Dev Patel', 'keep it up!']];
+  const chat = document.getElementById('demochat'); let i = 0;
+  const add = () => {
+    const [pc, nc, n, t] = lines[i++ % lines.length];
+    const m = document.createElement('div'); m.className = 'm';
+    const ic = document.createElement('i'); ic.style.background = pc;
+    const b = document.createElement('b'); b.style.color = nc; b.textContent = n + ':';
+    m.append(ic, b, t); chat.append(m);
+    while (chat.children.length > 7) chat.firstChild.remove();
+  };
+  for (let k = 0; k < 4; k++) add();
+  setInterval(add, 1700);
+})();
+</script>
+</body>
+</html>

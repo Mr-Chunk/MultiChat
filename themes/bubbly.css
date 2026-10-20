@@ -1,0 +1,34 @@
+/*
+  @name Bubbly Pastel
+  @description Soft pastel speech bubbles with a rounded, friendly font.
+  @swatch #fff4fb #ffc8dd #bde0fe #5b4b6b
+*/
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap");
+
+:root {
+  --mc-font: "Fredoka", "Segoe UI", sans-serif;
+  --mc-text: #4a3b5c;
+  --mc-bubble: rgba(255, 244, 251, .95);
+  --mc-bubble-radius: 18px;
+  --mc-outline: transparent;
+  --mc-highlight: #ff8fab;
+}
+.msg {
+  background-color: var(--mc-bubble);
+  border-radius: var(--mc-bubble-radius) var(--mc-bubble-radius) var(--mc-bubble-radius) 4px;
+  padding: .35em .75em;
+  margin: .4em 0 0 .2em;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--user-color, #ffc8dd) 60%, #fff), 0 6px 14px rgba(91, 75, 107, .25);
+  width: fit-content;
+  max-width: 100%;
+}
+.align-right .msg { margin-left: auto; }
+.align-center .msg { margin-left: auto; margin-right: auto; }
+.name { color: color-mix(in srgb, var(--user-color, #c77dff) 75%, #4a3b5c); font-weight: 600; }
+.animate .msg { animation: mc-pop .35s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes mc-pop { from { transform: scale(.6); opacity: 0 } to { transform: none; opacity: 1 } }
+.msg.superchat, .msg.member, .msg.highlight {
+  background-color: #ffe5ec;
+  border-left: 0;
+  box-shadow: 0 0 0 3px var(--mc-highlight), 0 6px 14px rgba(91, 75, 107, .25);
+}
